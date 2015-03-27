@@ -30,7 +30,7 @@ from tasklib import agent
 from tasklib import config
 from tasklib import logger
 from tasklib import task
-from tasklib import utils
+from tasklib import common
 
 
 class CmdApi(object):
@@ -77,7 +77,7 @@ class CmdApi(object):
         return parsed.func(parsed)
 
     def list(self, args):
-        for task_dir in utils.find_all_tasks(self.config):
+        for task_dir in common.find_all_tasks(self.config):
             print(task.Task.task_from_dir(task_dir, self.config))
 
     def show(self, args):

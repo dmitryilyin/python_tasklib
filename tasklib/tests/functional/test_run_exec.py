@@ -13,7 +13,7 @@
 #    under the License.
 
 from tasklib.tests import base
-from tasklib.utils import STATUS
+from tasklib.common import STATUS
 
 
 class TestFunctionalExecTasks(base.BaseFunctionalTest):

@@ -16,8 +16,8 @@ import logging
 import sys
 
 
-def setup_logging(config):
-    logger = logging.getLogger()
+def setup_logging(config, module):
+    logger = logging.getLogger(module)
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         '%(asctime)s %(levelname)s %(process)d (%(module)s) %(message)s',

@@ -17,8 +17,8 @@ import time
 
 import unittest
 
-from tasklib import utils
-from tasklib.utils import STATUS
+from tasklib import common
+from tasklib.common import STATUS
 
 
 class BaseUnitTest(unittest.TestCase):
@@ -33,14 +33,14 @@ class BaseFunctionalTest(BaseUnitTest):
         self.base_command = ['taskcmd', '-c', self.conf_path]
 
     def check_puppet_installed(self):
-        exit_code, out, err = utils.execute('which puppet')
+        exit_code, out, err = common.execute('which puppet')
         if exit_code == 1:
             self.skipTest('Puppet is not installed')
 
     def execute(self, add_command):
         command = self.base_command + add_command
         cmd = ' '.join(command)
-        return utils.execute(cmd)
+        return common.execute(cmd)
 
     def wait_ready(self, cmd, timeout):
         started = time.time()

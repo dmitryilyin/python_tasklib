@@ -12,24 +12,28 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import logging
-
 from tasklib import exceptions
-
-
-log = logging.getLogger(__name__)
 
 
 class Action(object):
 
-    def __init__(self, task, config):
+    def __init__(self, task, data):
         self.task = task
-        self.config = config
-        log.debug('Init action with task %s', self.task.name)
+        self.data = data
+        self.logger = task.logger
+        self.logger.debug("Task: '%s' action: '%s' init",
+                          self.task.name, self.type)
+
+    @property
+    def type(self):
+        return self.__class__.__name__
 
     def verify(self):
-        if 'type' not in self.task.metadata:
+        if not isinstance(self.data, dict):
             raise exceptions.NotValidMetadata()
 
     def run(self):
+        raise NotImplementedError('Should be implemented by action driver.')
+
+    def report(self):
         raise NotImplementedError('Should be implemented by action driver.')

@@ -12,100 +12,135 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import logging
 import os
-
 import yaml
 
-from tasklib.actions import exec_action
+from tasklib.actions import shell
 from tasklib.actions import puppet
 from tasklib import exceptions
+from contextlib import contextmanager
 
 # use stevedore here
-type_mapping = {'exec': exec_action.ExecAction,
-                'puppet': puppet.PuppetAction}
-
-log = logging.getLogger(__name__)
+type_mapping = {
+    'shell': shell.ShellAction,
+    'exec': shell.ShellAction,
+    'puppet': puppet.PuppetAction,
+}
 
 
 class Task(object):
-    """Unit of execution. Contains pre/post/run subtasks."""
 
-    def __init__(self, task_name, config):
-        self.config = config
-        self.name = task_name
-        self.dir = os.path.abspath(
-            os.path.join(config['library_dir'], self.name))
-        self.file = os.path.abspath(
-            os.path.join(self.dir, config['task_file']))
-        self.pid_dir = os.path.abspath(
-            os.path.join(self.config['pid_dir'], self.name))
-        self.report_dir = os.path.abspath(
-            os.path.join(self.config['report_dir'], self.name))
-        self.status_file = os.path.abspath(os.path.join(
-            self.report_dir, self.config['status_file']))
-        self.verify()
-        self._metadata = {}
-        self.comment = self.metadata.get('comment', '')
+    def __init__(self, agent, data):
+        self.agent = agent
+        self.config = agent.config
+        self.logger = agent.logger
+        self.data = data
         self.saved_directory = None
-        # log.debug('Init task %s with task file %s', self.name, self.file)
+        self.report = {}
+        if not self.verify():
+            raise exceptions.NotValidMetadata()
+
+        self.logger.debug("Task: '%s' task init", self.id)
 
     def verify(self):
-        if not os.path.exists(self.file):
-            raise exceptions.NotFound()
+        if not self.id:
+            return False
+        if not self.type:
+            return False
+        return True
+
+    def reset(self):
+        self.report = {}
 
     @property
-    def metadata(self):
-        if self._metadata:
-            return self._metadata
-        data = self.read_task_file()
-        if data:
-            self._metadata = yaml.load(data)
-        return self._metadata
+    def id(self):
+        return self.data.get('id', None)
 
-    def read_task_file(self):
-        """Read the task file of this task
-        :return: the contents of the file
-        :rtype: str
-        """
-        with open(self.file, 'r') as f:
-            data = f.read()
-        return data
+    @property
+    def name(self):
+        return self.id
 
-    @classmethod
-    def task_from_dir(cls, task_dir, config):
-        path = task_dir.replace(config['library_dir'], '').split('/')
-        task_name = '/'.join((p for p in path if p))
-        return cls(task_name, config)
+    @property
+    def type(self):
+        if 'type' in self.parameters:
+            return self.parameters['type']
+        return self.data.get('type', None)
+
+    @property
+    def parameters(self):
+        return self.data.get('parameters', {})
+
+    @property
+    def task_directory(self):
+        return self.parameters.get('cwd', None)
+
+    @property
+    def pre_data(self):
+        return self.data.get('test_pre', None)
+
+    @property
+    def post_data(self):
+        return self.data.get('test_post', None)
+
+    @property
+    def pre_type(self):
+        if 'cmd' in self.pre_data and not 'type' in self.pre_data:
+            return 'shell'
+        return self.pre_data.get('type', None)
+
+    @property
+    def post_type(self):
+        if 'cmd' in self.post_data and not 'type' in self.post_data:
+            return 'shell'
+        return self.post_data.get('type', None)
 
     def __repr__(self):
-        return "{0:40} | {1:39}".format(self.name, self.comment)
+        return "TaskLib/Task('%s')" % self.id
 
-    def change_directory_to_task(self):
-        """Change directory to the task
-        And save the current directory
-        :return:
-        """
-        self.saved_directory = os.getcwd()
-        if os.path.exists(self.dir):
-            os.chdir(self.dir)
+    def action(self, action_type, data):
+        action_class = type_mapping.get(action_type)
+        if action_class is None:
+            raise exceptions.NotValidMetadata()
+        action = action_class(self, data)
+        return action
 
-    def change_directory_back(self):
-        """Change directory back from the task
-        Using previously saved value
-        :return:
-        """
+    @contextmanager
+    def inside_task_directory(self):
+        self.saved_directory = None
+        if self.task_directory and os.path.isdir(self.task_directory):
+            self.saved_directory = os.getcwd()
+            os.chdir(self.task_directory)
+        yield
         if self.saved_directory:
             os.chdir(self.saved_directory)
 
     def run(self):
-        """Will be used to run a task."""
-        action_class = type_mapping.get(self.metadata.get('type'))
-        if action_class is None:
-            raise exceptions.NotValidMetadata()
-        action = action_class(self, self.config)
-        action.verify()
-        self.change_directory_to_task()
-        output = action.run()
-        self.change_directory_back()
-        return output
+        action = self.action(self.type, self.parameters)
+        with self.inside_task_directory():
+            self.logger.debug("Task: '%s' start action: run", self.id)
+            action.run()
+            self.report['run'] = action.report()
+            self.logger.debug("Task: '%s' end action: run", self.id)
+        return self.report['run']
+
+    def pre(self):
+        if not self.pre_data:
+            return None
+        action = self.action(self.pre_type, self.pre_data)
+        with self.inside_task_directory():
+            self.logger.debug("Task: '%s' start action: pre", self.id)
+            action.run()
+            self.report['pre'] = action.report()
+            self.logger.debug("Task: '%s' end action: pre", self.id)
+        return self.report['pre']
+
+    def post(self):
+        if not self.post_data:
+            return None
+        action = self.action(self.post_type, self.post_data)
+        with self.inside_task_directory():
+            self.logger.debug("Task: '%s' start action: post", self.id)
+            action.run()
+            self.report['post'] = action.report()
+            self.logger.debug("Task: '%s' end action: post", self.id)
+        return self.report['post']

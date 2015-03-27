@@ -18,7 +18,7 @@ import yaml
 
 from tasklib.actions import action
 from tasklib import exceptions
-from tasklib import utils
+from tasklib import common
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class PuppetAction(action.Action):
         :rtype: int
         """
         self.exit_code, self.stdout, self.stderr \
-            = utils.execute(self.command)
+            = common.execute(self.command)
         return self.exit_code
 
     @property

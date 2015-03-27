@@ -3,3 +3,4 @@ tmp/*
 *.pyc
 tasklib/tests/functional/tmp/
 tasklib.log
+.idea

@@ -13,34 +13,35 @@
 #    under the License.
 
 import os
-
 import yaml
 
 
 class Config(object):
 
     def __init__(self, config_file=None):
-        self.curdir = os.getcwd()
         self.config = self.default_config
-        if config_file:
-            self.update_from_file(config_file)
+        if config_file and os.path.exists(config_file):
+                self.update_from_file(config_file)
 
     @property
     def default_config(self):
         return {
-            'library_dir': '/etc/puppet/tasks',
+            'tasks_directory': '/etc/puppet/modules/osnailyfacter/modular/',
+            'tasks_pattern': '*tasks.yaml',
             'puppet_modules': '/etc/puppet/modules',
             'puppet_options': '--logdest syslog '
                               '--logdest /var/log/puppet.log '
                               '--logdest console '
+                              '--trace '
+                              '--evaltrace '
+                              '--verbose '
+                              '--debug '
                               '--report',
             'report_dir': '/var/tmp/task_report',
-            'pid_dir': '/var/tmp/task_run',
-            'puppet_manifest': 'site.pp',
-            'status_file': 'status',
-            'debug': True,
-            'task_file': 'task.yaml',
-            'log_file': '/var/log/tasklib.log'}
+            'pid_dir': '/var/tmp/task_pid',
+            'status_dir': '/var/tmp/task_status',
+            'log_file': '/var/tmp/tasklib.log',
+        }
 
     def update_from_file(self, config_file):
         if os.path.exists(config_file):

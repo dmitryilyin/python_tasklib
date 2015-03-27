@@ -1,0 +1,13 @@
+- id: test-simple
+  type: shell
+  role: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/true
+    timeout: 180
+  test_pre:
+    cmd: /bin/true
+  test_post:
+    cmd: /bin/true
+
