@@ -22,7 +22,7 @@ from tasklib import agent
 from tasklib import config
 from tasklib import exceptions
 from tasklib import common
-
+from contextlib import contextmanager
 
 class CmdApi(object):
     """
@@ -83,27 +83,21 @@ class CmdApi(object):
             actions = common.task_action_present(library[task_id])
 
             common.output(task_id, fill=max_len + 3, newline=False)
-            common.output('[' + task_type + ']', fill=10, newline=False)
-            common.output('(' + ', '.join(actions) + ')')
-
-    def task_not_found(self, task_id):
-            common.output("Task '%s' not found at '%s'" % (
-                task_id,
-                self.config['tasks_directory'],
-            ))
-            sys.exit(common.STATUS.not_found.code)
+            common.output('(' + task_type + ')', fill=10, newline=False)
+            common.output('[' + ', '.join(actions) + ']')
 
     def show(self, args):
-        library = common.task_library(self.config)
-        if not args.task in library:
-            self.task_not_found(args.task)
-        common.output(yaml.dump(
-            library[args.task],
-            default_flow_style=False
-        ))
+        with self.rescue_exceptions():
+            library = common.task_library(self.config)
+            if not args.task in library:
+                raise exceptions.NotFound()
+            common.output(yaml.dump(
+                library[args.task],
+                default_flow_style=False
+            ))
 
     def run(self, args):
-        try:
+        with self.rescue_exceptions():
             task_agent = agent.Agent(args.task, self.config)
             task_agent.run()
             status = task_agent.status()
@@ -111,40 +105,46 @@ class CmdApi(object):
             common.output("Report:")
             common.output(common.report_to_text(task_agent.report()))
             return task_agent.code()
-        except exceptions.NotFound:
-            self.task_not_found(args.task)
 
     def daemon(self, args):
-        try:
+        with self.rescue_exceptions():
             task_agent = agent.Agent(args.task, self.config)
             task_agent.daemon()
-        except exceptions.NotFound:
-            self.task_not_found(args.task)
 
     def report(self, args):
-        try:
+        with self.rescue_exceptions():
             task_agent = agent.Agent(args.task, self.config)
             common.output(common.report_to_text(task_agent.report()))
-        except exceptions.NotFound:
-            self.task_not_found(args.task)
 
     def status(self, args):
-        try:
+        with self.rescue_exceptions():
             task_agent = agent.Agent(args.task, self.config)
             common.output("Task status: '%s'" % task_agent.status())
             return task_agent.code()
-        except exceptions.NotFound:
-            self.task_not_found(args.task)
 
     def clear(self, args):
-        try:
+        with self.rescue_exceptions():
             task_agent = agent.Agent(args.task, self.config)
             task_agent.clear()
-        except exceptions.NotFound:
-            self.task_not_found(args.task)
 
     def conf(self, args):
-        print(self.config)
+        common.output(self.config)
+
+    @contextmanager
+    def rescue_exceptions(self):
+        try:
+            yield
+        except exceptions.NotFound as e:
+            common.output(e.msg)
+            sys.exit(common.STATUS.not_found.code)
+        except exceptions.AlreadyRunning as e:
+            common.output(e.msg)
+            sys.exit(common.STATUS.already_running.code)
+        except exceptions.NotValidMetadata as e:
+            common.output(e.msg)
+            sys.exit(common.STATUS.error.code)
+
+##############################################################################
 
 
 def main():

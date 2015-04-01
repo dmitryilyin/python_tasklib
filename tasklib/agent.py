@@ -27,6 +27,8 @@ class Agent(object):
         self.logger = logger.setup_logging(self.config, 'tasklib')
         self.logger.debug("Task: '%s' agent init", task_name)
         self.task = None
+        self.saved_directory = None
+        self.init_task_name = task_name
         self.library = common.task_library(self.config)
         self.init_directories()
 
@@ -43,14 +45,30 @@ class Agent(object):
 
     def verify(self):
         if self.task is None:
-            raise exceptions.NotFound()
+            raise exceptions.NotFound(
+                self.init_task_name,
+                self.config['tasks_directory']
+            )
 
     def run(self):
-        if not self.task:
-            return
-        if self.running():
-            raise exceptions.AlreadyRunning()
-        return self.task.run()
+        self.logger.debug('run start')
+        try:
+            if self.saved_directory and os.path.isdir(self.saved_directory):
+                os.chdir(self.saved_directory)
+            #self.logger.debug(self.task)
+            if not self.task:
+                return
+            self.logger.debug('task!')
+            self.task.logger = self.logger
+            #self.logger.debug(os.getcwd())
+            #self.logger.debug(self.cwd)
+            self.task.run()
+        except Exception as e:
+            self.logger.debug(str(e))
+        self.logger.debug('run end')
+        # if self.running():
+        #     raise exceptions.AlreadyRunning(self.task.name, self.pid)
+        #return self.task.run()
 
     def status(self):
         if not self.task:
@@ -72,7 +90,10 @@ class Agent(object):
         return report
 
     def __repr__(self):
-        return "TaskLib/Agent('%s')" % self.task.name
+        return "Agent('%s')" % self.task.name
+
+    def __str__(self):
+        return self.__repr__()
 
     @property
     def pid_file(self):
@@ -93,16 +114,26 @@ class Agent(object):
 
     @staticmethod
     def pid_exists(pid):
-        cmdline = '/proc/%d/cmdline' % pid
+        cmdline = '/proc/%s/cmdline' % pid
         return os.path.isdir(cmdline)
 
     def daemon(self):
+        import logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.propagate = False
+        fh = logging.FileHandler("/tmp/test.log", "w")
+        fh.setLevel(logging.DEBUG)
+        self.logger.addHandler(fh)
+        keep_fds = [fh.stream.fileno()]
         self.logger.debug("Task: '%s' daemonize with pid file: '%s'",
                           self.task.name, self.pid_file)
+        self.saved_directory = os.getcwd()
         daemon = daemonize.Daemonize(
-            app=str(self),
+            app='tasklib',
             pid=self.pid_file,
             action=self.run,
+            keep_fds=keep_fds,
         )
         daemon.start()
         return daemon

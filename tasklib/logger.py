@@ -18,20 +18,23 @@ import sys
 
 def setup_logging(config, module):
     logger = logging.getLogger(module)
-    logger.setLevel(logging.DEBUG)
+    if config['debug']:
+        logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         '%(asctime)s %(levelname)s %(process)d (%(module)s) %(message)s',
         "%Y-%m-%d %H:%M:%S")
 
-    if sys.stdout.isatty():
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.DEBUG)
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
+    # if sys.stdout.isatty():
+    #     stream_handler = logging.StreamHandler()
+    #     if config['debug']:
+    #         stream_handler.setLevel(logging.DEBUG)
+    #     stream_handler.setFormatter(formatter)
+    #     logger.addHandler(stream_handler)
 
     if config['log_file']:
         file_handler = logging.FileHandler(config['log_file'])
-        file_handler.setLevel(logging.DEBUG)
+        if config['debug']:
+            file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     return logger

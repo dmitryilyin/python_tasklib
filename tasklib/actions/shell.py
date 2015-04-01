@@ -49,7 +49,7 @@ class ShellAction(action.Action):
             self.report(),
         ))
         if self.code != 0:
-            raise exceptions.Failed()
+            raise exceptions.Failed(self.task.name, self.type)
         return self.code
 
     def report(self):

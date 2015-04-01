@@ -1,0 +1,8 @@
+- id: test-fail
+  type: shell
+  role: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/false
+    timeout: 180

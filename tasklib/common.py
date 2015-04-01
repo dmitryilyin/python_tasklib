@@ -37,6 +37,7 @@ STATUS = key_value_enum({
     'fail_post':       6,
     'not_found':       7,
     'already_running': 8,
+    'error':           9,
 })
 
 
@@ -103,6 +104,8 @@ def output(string, newline=True, fill=None):
 
 def max_task_id_length(library):
     tasks = library.keys()
+    if len(tasks) == 0:
+        return None
     return len(max(tasks, key=len))
 
 

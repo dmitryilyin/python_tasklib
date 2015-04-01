@@ -41,7 +41,7 @@ class Config(object):
             'pid_dir': '/var/tmp/task_pid',
             'status_dir': '/var/tmp/task_status',
             'log_file': '/var/tmp/tasklib.log',
-            'debug': True,
+            'debug': False,
         }
 
     def update_from_file(self, config_file):

@@ -1,5 +1,6 @@
 tasks_directory: tasklib/tests/functional
-#pid_dir: tmp/task_run
-#report_dir: tmp/task_report
-#debug: true
-#log_file: tasklib.log
+pid_dir: tmp/run
+report_dir: tmp/report
+status_dir: tmp/status
+debug: true
+log_file: tmp/tasklib.log

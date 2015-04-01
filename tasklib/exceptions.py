@@ -13,26 +13,37 @@
 #    under the License.
 
 
-class TasklibException(Exception):
-
-    msg = 'Tasklib generic error'
-
-
-class NotFound(TasklibException):
-
-    msg = 'No task with provided name'
+class TaskLibException(Exception):
+    def __init__(self):
+        self.msg = 'TaskLib abstract error!'
 
 
-class NotValidMetadata(TasklibException):
-
-    msg = 'Missing critical items in metadata'
-
-
-class Failed(TasklibException):
-
-    msg = 'Task failed'
+class NotFound(TaskLibException):
+    def __init__(self, task_name, tasks_directory):
+        self.task_name = task_name
+        self.task_directory = tasks_directory
+        self.msg = "Task: '%s' not found in '%s'!" % \
+                   (self.task_name, self.task_directory)
 
 
-class AlreadyRunning(TasklibException):
+class NotValidMetadata(TaskLibException):
+    def __init__(self, object_name):
+        self.object_name = object_name
+        self.msg = "%s: missing critical items in metadata!" % \
+                   self.object_name
 
-    msg = 'Task is already running'
+
+class Failed(TaskLibException):
+    def __init__(self, task_name, action_type):
+        self.task_name = task_name
+        self.action_type = action_type
+        self.msg = "Task: '%s' action: '%s' have failed!" % \
+                   (self.task_name, self.action_type)
+
+
+class AlreadyRunning(TaskLibException):
+    def __init__(self, task_name, pid):
+        self.task_name = task_name
+        self.pid = pid
+        self.msg = "Task: '%s' is already running at pid: '%s'!" % \
+                   (self.task_name, self.pid)

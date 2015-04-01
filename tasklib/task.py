@@ -121,12 +121,16 @@ class Task(object):
 
     @property
     def pre_type(self):
+        if not self.pre_data:
+            return None
         if 'cmd' in self.pre_data and not 'type' in self.pre_data:
             return 'shell'
         return self.pre_data.get('type', None)
 
     @property
     def post_type(self):
+        if not self.post_data:
+            return None
         if 'cmd' in self.post_data and not 'type' in self.post_data:
             return 'shell'
         return self.post_data.get('type', None)
@@ -134,7 +138,7 @@ class Task(object):
     ##
 
     def __repr__(self):
-        return "TaskLib/Task('%s')" % self.id
+        return "Task('%s')" % self.id
 
     def __str__(self):
         return self.__repr__()
@@ -142,11 +146,6 @@ class Task(object):
     ##
 
     def report_file(self, action):
-        # filter out unknown actions
-        if not action in ['pre', 'task', 'post']:
-            self.logger.warning("Task: '%s' unknown report action: '%s'" %
-                                (self.id, action))
-            raise exceptions.NotValidMetadata()
         return os.path.join(self.config['report_dir'], self.id + '.' + action)
 
     def status_file(self):
@@ -224,7 +223,7 @@ class Task(object):
 
     def verify(self):
         if not self.id and self.type:
-            raise exceptions.NotValidMetadata()
+            raise exceptions.NotValidMetadata(str(self))
 
     def reset(self):
         self.save_status(None)
@@ -234,7 +233,7 @@ class Task(object):
     def action(self, action_type, data):
         action_class = type_mapping.get(action_type)
         if action_class is None:
-            raise exceptions.NotValidMetadata()
+            raise exceptions.NotValidMetadata(str(self))
         action = action_class(self, data)
         return action
 
@@ -282,34 +281,34 @@ class Task(object):
         return common.STATUS.success.code
 
     def task(self):
-        if not self.task_data and self.task_type:
+        if not self.task_data:
             return None
         action = self.action(self.type, self.task_data)
         with self.inside_task_directory():
             self.logger.debug("Task: '%s' start action: task", self.id)
             action.run()
             report = action.report()
-            self.save_report('task', report)
-            self.logger.debug("Task: '%s' end action: task", self.id)
+        self.save_report('task', report)
+        self.logger.debug("Task: '%s' end action: task", self.id)
 
     def pre(self):
-        if not self.pre_data and self.pre_type:
+        if not self.pre_data:
             return None
         action = self.action(self.pre_type, self.pre_data)
         with self.inside_task_directory():
             self.logger.debug("Task: '%s' start action: pre", self.id)
             action.run()
             report = action.report()
-            self.save_report('pre', report)
-            self.logger.debug("Task: '%s' end action: pre", self.id)
+        self.save_report('pre', report)
+        self.logger.debug("Task: '%s' end action: pre", self.id)
 
     def post(self):
-        if not self.post_data and self.pre_type:
+        if not self.post_data:
             return None
         action = self.action(self.post_type, self.post_data)
         with self.inside_task_directory():
             self.logger.debug("Task: '%s' start action: post", self.id)
             action.run()
             report = action.report()
-            self.save_report('post', report)
-            self.logger.debug("Task: '%s' end action: post", self.id)
+        self.save_report('post', report)
+        self.logger.debug("Task: '%s' end action: post", self.id)
