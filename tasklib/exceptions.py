@@ -31,3 +31,8 @@ class NotValidMetadata(TasklibException):
 class Failed(TasklibException):
 
     msg = 'Task failed'
+
+
+class AlreadyRunning(TasklibException):
+
+    msg = 'Task is already running'

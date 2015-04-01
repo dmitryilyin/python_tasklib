@@ -11,14 +11,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Tasklib cmd interface
-Exit Codes:
-ended successfully - 0
-running - 1
-valid but failed - 2
-unexpected error - 3
-notfound such task - 4
-"""
 
 import argparse
 import sys
@@ -28,16 +20,18 @@ import yaml
 
 from tasklib import agent
 from tasklib import config
-from tasklib import logger
-from tasklib import task
+from tasklib import exceptions
 from tasklib import common
 
 
 class CmdApi(object):
+    """
+    TaskLib CLI utility
+    """
 
     def __init__(self):
         self.parser = argparse.ArgumentParser(
-            description=textwrap.dedent(__doc__),
+            description=textwrap.dedent(self.__doc__),
             formatter_class=argparse.RawDescriptionHelpFormatter)
         self.subparser = self.parser.add_subparsers(
             title='actions',
@@ -50,7 +44,7 @@ class CmdApi(object):
     def register_options(self):
         self.parser.add_argument(
             '--config', '-c', dest='config', default=None,
-            help='Path to configuration file')
+            help='Path to a configuration file')
         self.parser.add_argument(
             '--debug', '-d', dest='debug', action='store_true', default=None)
 
@@ -58,7 +52,7 @@ class CmdApi(object):
         task_arg = [(('task',), {'type': str})]
         self.register_parser('list')
         self.register_parser('conf')
-        for name in ('run', 'daemon', 'report', 'status', 'show'):
+        for name in ('run', 'daemon', 'report', 'status', 'show', 'clear'):
             self.register_parser(name, task_arg)
 
     def register_parser(self, func_name, arguments=()):
@@ -73,38 +67,81 @@ class CmdApi(object):
             self.config.update_from_file(parsed.config)
         if parsed.debug is not None:
             self.config['debug'] = parsed.debug
-        logger.setup_logging(self.config)
         return parsed.func(parsed)
 
     def list(self, args):
-        for task_dir in common.find_all_tasks(self.config):
-            print(task.Task.task_from_dir(task_dir, self.config))
+        library = common.task_library(self.config)
+        tasks = library.keys()
+        tasks.sort()
+        max_len = common.max_task_id_length(library)
+        for task_id in tasks:
+            if not isinstance(library[task_id], dict):
+                continue
+            task_type = common.task_type(library[task_id])
+            if not task_type:
+                continue
+            actions = common.task_action_present(library[task_id])
+
+            common.output(task_id, fill=max_len + 3, newline=False)
+            common.output('[' + task_type + ']', fill=10, newline=False)
+            common.output('(' + ', '.join(actions) + ')')
+
+    def task_not_found(self, task_id):
+            common.output("Task '%s' not found at '%s'" % (
+                task_id,
+                self.config['tasks_directory'],
+            ))
+            sys.exit(common.STATUS.not_found.code)
 
     def show(self, args):
-        meta = task.Task(args.task, self.config).metadata
-        print(yaml.dump(meta, default_flow_style=False))
+        library = common.task_library(self.config)
+        if not args.task in library:
+            self.task_not_found(args.task)
+        common.output(yaml.dump(
+            library[args.task],
+            default_flow_style=False
+        ))
 
     def run(self, args):
-        task_agent = agent.TaskAgent(args.task, self.config)
-        if task_agent.verify():
+        try:
+            task_agent = agent.Agent(args.task, self.config)
             task_agent.run()
-        status = task_agent.status()
-        print(status)
-        return task_agent.code()
+            status = task_agent.status()
+            common.output("Task status: '%s'" % status)
+            common.output("Report:")
+            common.output(common.report_to_text(task_agent.report()))
+            return task_agent.code()
+        except exceptions.NotFound:
+            self.task_not_found(args.task)
 
     def daemon(self, args):
-        task_agent = agent.TaskAgent(args.task, self.config)
-        task_agent.daemon()
+        try:
+            task_agent = agent.Agent(args.task, self.config)
+            task_agent.daemon()
+        except exceptions.NotFound:
+            self.task_not_found(args.task)
 
     def report(self, args):
-        task_agent = agent.TaskAgent(args.task, self.config)
-        print(task_agent.report())
+        try:
+            task_agent = agent.Agent(args.task, self.config)
+            common.output(common.report_to_text(task_agent.report()))
+        except exceptions.NotFound:
+            self.task_not_found(args.task)
 
     def status(self, args):
-        task_agent = agent.TaskAgent(args.task, self.config)
-        exit_code = task_agent.code()
-        print(task_agent.status())
-        return exit_code
+        try:
+            task_agent = agent.Agent(args.task, self.config)
+            common.output("Task status: '%s'" % task_agent.status())
+            return task_agent.code()
+        except exceptions.NotFound:
+            self.task_not_found(args.task)
+
+    def clear(self, args):
+        try:
+            task_agent = agent.Agent(args.task, self.config)
+            task_agent.clear()
+        except exceptions.NotFound:
+            self.task_not_found(args.task)
 
     def conf(self, args):
         print(self.config)

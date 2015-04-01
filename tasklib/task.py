@@ -11,41 +11,42 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+"""
+A task is responsible for choosing what action should be used for each
+supported task type as well as pre and post test types if these tests are
+present. A task should run tests if they are enabled and present and save
+report files.
 
-# A task is responsible for choosing what action should be used for each
-# supported task type as well as pre and post test types if these tests are
-# present. A task should run tests if they are enabled and present and save
-# report files.
-#
-# * A task SHOULD be created by an agent with the agent instance and task
-#   metadata dictionary as parameters.
-# * A task SHOULD verify itself and raise 'exceptions.NotValidMetadata'
-#   if verification is failed when 'verify' is called and in __init__.
-# * A task SHOULD run itself when 'test' method is called.
-# * A task SHOULD run pre test if 'pre' method is called and pre test exists.
-# * A task SHOULD run pre test if 'post' method is called and post test exists.
-# * A task SHOULD run pre, task and post if 'run' method is called. Failed
-#   action stops the run.
-# * A task SHOULD collect reports from tests and actions and save them to the
-#   report files.
-# * A task SHOULD maintain the status file with its current status.
-# * A task SHOULD return the current status and its code when
-#   'status' and 'code' methods are called.
-# * A task should return the reports of tests and actions when
-#   the 'report' method is called with 'pre', 'task' and 'post' parameters
-# * A task MUST NOT go into the details of how an action is working.
-# * A task MUST NOT interfere with pid, status and other Agent's jobs.
-#
-# * Task's 'parameters' contains the actual job the task should do
-# * Pre test is run before the task and, it it fails, task will not be started
-#   at all. Pre test parameters are inside 'test_pre'.
-# * Post test is run after the task and, it it fails, task is considered
-#   unsuccessful even if the task itself did not fail. Post test parameters
-#   are inside 'test_post'.
-# * A task can have any set of pre, post and task parameters. A task without
-#   any of them is valid too. It will successfully do nothing.
-# * The action used for task or test is determined by the task type or test
-#   type. These types should be present in the task or an action data.
+* A task SHOULD be created by an agent with the agent instance and task
+  metadata dictionary as parameters.
+* A task SHOULD verify itself and raise 'exceptions.NotValidMetadata'
+  if verification is failed when 'verify' is called and in __init__.
+* A task SHOULD run itself when 'test' method is called.
+* A task SHOULD run pre test if 'pre' method is called and pre test exists.
+* A task SHOULD run pre test if 'post' method is called and post test exists.
+* A task SHOULD run pre, task and post if 'run' method is called. Failed
+  action stops the run.
+* A task SHOULD collect reports from tests and actions and save them to the
+  report files.
+* A task SHOULD maintain the status file with its current status.
+* A task SHOULD return the current status and its code when
+  'status' and 'code' methods are called.
+* A task should return the reports of tests and actions when
+  the 'report' method is called with 'pre', 'task' and 'post' parameters
+* A task MUST NOT go into the details of how an action is working.
+* A task MUST NOT interfere with pid, status and other Agent's jobs.
+
+* Task's 'parameters' contains the actual job the task should do
+* Pre test is run before the task and, it it fails, task will not be started
+  at all. Pre test parameters are inside 'test_pre'.
+* Post test is run after the task and, it it fails, task is considered
+  unsuccessful even if the task itself did not fail. Post test parameters
+  are inside 'test_post'.
+* A task can have any set of pre, post and task parameters. A task without
+  any of them is valid too. It will successfully do nothing.
+* The action used for task or test is determined by the task type or test
+  type. These types should be present in the task or an action data.
+"""
 
 import os
 from tasklib.actions import shell
@@ -72,7 +73,6 @@ class Task(object):
         self._report = {}
         self.saved_directory = None
         self.verify()
-        self.known_actions = ['pre', 'task', 'post']
         self.logger.debug("Task: '%s' task init", self.id)
 
     ##
@@ -143,7 +143,7 @@ class Task(object):
 
     def report_file(self, action):
         # filter out unknown actions
-        if not action in self.known_actions:
+        if not action in ['pre', 'task', 'post']:
             self.logger.warning("Task: '%s' unknown report action: '%s'" %
                                 (self.id, action))
             raise exceptions.NotValidMetadata()
@@ -205,6 +205,9 @@ class Task(object):
     def code(self):
         return getattr(common.STATUS, self.status()).code
 
+    def success(self):
+        return self.status() == common.STATUS.success.name
+
     def status(self):
         # return status from memory if present
         if self._status:
@@ -225,7 +228,7 @@ class Task(object):
 
     def reset(self):
         self.save_status(None)
-        for action in self.known_actions:
+        for action in ['pre', 'task', 'post']:
             self.save_report(action, None)
 
     def action(self, action_type, data):
@@ -260,7 +263,7 @@ class Task(object):
 
         try:
             self.save_status(common.STATUS.run_task.name)
-            self.run()
+            self.task()
         except exceptions.Failed:
             self.logger.warning("Task: '%s' task failed!", self.id)
             self.save_status(common.STATUS.fail_task.name)

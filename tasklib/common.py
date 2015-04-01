@@ -17,6 +17,7 @@ import fnmatch
 import os
 import subprocess
 import yaml
+import sys
 
 
 Status = namedtuple('Status', ['name', 'code'])
@@ -27,14 +28,15 @@ def key_value_enum(enums):
     return type('Enum', (), enums)
 
 STATUS = key_value_enum({
-    'success':     0,
-    'run_pre':     1,
-    'run_task':    2,
-    'run_post':    3,
-    'fail_pre':    4,
-    'fail_task':   5,
-    'fail_post':   6,
-    'not_found':   7,
+    'success':         0,
+    'run_pre':         1,
+    'run_task':        2,
+    'run_post':        3,
+    'fail_pre':        4,
+    'fail_task':       5,
+    'fail_post':       6,
+    'not_found':       7,
+    'already_running': 8,
 })
 
 
@@ -88,3 +90,52 @@ def execute(cmd):
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stdout, stderr = command.communicate()
     return command.returncode, stdout, stderr
+
+
+def output(string, newline=True, fill=None):
+    string = str(string)
+    if fill:
+        string = string[0:fill].ljust(fill)
+    if newline and not string.endswith("\n"):
+        string += "\n"
+    sys.stdout.write(string)
+
+
+def max_task_id_length(library):
+    tasks = library.keys()
+    return len(max(tasks, key=len))
+
+
+def report_to_text(report):
+    if not isinstance(report, dict):
+        return
+    text_report = ''
+    for action in ['pre', 'task', 'post']:
+        if not action in report:
+            continue
+        text_report += "===== %s =====\n" % action
+        report_data = report[action]
+        if not report_data.endswith("\n"):
+            report_data += "\n"
+        text_report += report_data
+    return text_report
+
+
+def task_type(task_data):
+    parameters_type = task_data.get('parameters', {}).get('type', None)
+    if parameters_type:
+        return parameters_type
+    if 'type' in task_data:
+        return task_data['type']
+    return None
+
+
+def task_action_present(task_data):
+    actions = []
+    if 'test_pre' in task_data:
+        actions.append('pre')
+    if 'parameters' in task_data:
+        actions.append('task')
+    if 'test_post' in task_data:
+        actions.append('post')
+    return actions

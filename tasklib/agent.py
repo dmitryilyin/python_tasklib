@@ -15,11 +15,10 @@
 import os
 import daemonize
 
-from tasklib import exceptions
 from tasklib import task
 from tasklib import common
 from tasklib import logger
-import yaml
+from tasklib import exceptions
 
 
 class Agent(object):
@@ -28,17 +27,14 @@ class Agent(object):
         self.logger = logger.setup_logging(self.config, 'tasklib')
         self.logger.debug("Task: '%s' agent init", task_name)
         self.task = None
-        self.pre = None
-        self.post = None
         self.library = common.task_library(self.config)
         self.init_directories()
 
-        if not task_name in self.library:
-            self.logger.warning("Task: '%s' not found!", task_name)
-            self.task = None
-        else:
+        if task_name in self.library:
             task_data = self.library[task_name]
             self.task = task.Task(self, task_data)
+
+        self.verify()
 
     def init_directories(self):
         common.ensure_dir_created(self.config['pid_dir'])
@@ -46,7 +42,34 @@ class Agent(object):
         common.ensure_dir_created(self.config['status_dir'])
 
     def verify(self):
-        return self.task is not None
+        if self.task is None:
+            raise exceptions.NotFound()
+
+    def run(self):
+        if not self.task:
+            return
+        if self.running():
+            raise exceptions.AlreadyRunning()
+        return self.task.run()
+
+    def status(self):
+        if not self.task:
+            return
+        return self.task.status()
+
+    def code(self):
+        if not self.task:
+            return
+        return self.task.code()
+
+    def report(self):
+        if not self.task:
+            return
+        report = {}
+        for action in ['pre', 'task', 'post']:
+            if self.task.report(action):
+                report[action] = self.task.report(action)
+        return report
 
     def __repr__(self):
         return "TaskLib/Agent('%s')" % self.task.name
@@ -55,6 +78,23 @@ class Agent(object):
     def pid_file(self):
         return os.path.join(self.config['pid_dir'],
                             self.task.name + '.pid')
+
+    @property
+    def pid(self):
+        if not os.path.exists(self.pid_file):
+            return None
+        with open(self.pid_file, 'r') as f:
+            return f.read()
+
+    def running(self):
+        if not self.pid:
+            return False
+        return self.pid_exists(self.pid)
+
+    @staticmethod
+    def pid_exists(pid):
+        cmdline = '/proc/%d/cmdline' % pid
+        return os.path.isdir(cmdline)
 
     def daemon(self):
         self.logger.debug("Task: '%s' daemonize with pid file: '%s'",
@@ -67,6 +107,8 @@ class Agent(object):
         daemon.start()
         return daemon
 
-    def clean_pid(self):
+    def clear(self):
         if os.path.exists(self.pid_file):
             os.unlink(self.pid_file)
+        if self.task:
+            self.task.reset()

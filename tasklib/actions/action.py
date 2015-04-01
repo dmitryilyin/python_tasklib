@@ -12,25 +12,27 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# Action is responsible for the details of a specific task type, either
-# the task itself or pre/post test.
-#
-# * Action SHOULD be created by a task and should be given the parent task an
-#   the dictionary of values that will be used to determine what the action
-#   should do
-# * Action SHOULD verify that it has all the required data and the data
-#   is correct by the 'verify' function and during the initialization.
-# * If verification is failed action should raise 'exceptions.NotValidMetadata'
-# * Action SHOULD run its payload when 'run' method is called.
-# * If action is failed it should raise 'exceptions.Failed'
-# * Action SHOULD return report when 'report' method is called. The report
-#   should be a String, preferably in xUnit xml format, or None, it there is
-#   no report to return.
-# * Action MAY implement 'reset' method to reload to the initial state if it's
-#   required.
-# * Action MAY use logger and config values from the parent task.
-# * Action MUST NOT work with reports and tests, it's Task's job.
-# * Action MUST NOT interfere with status and processes, it's Agent's job.
+"""
+Action is responsible for the details of a specific task type, either
+the task itself or pre/post test.
+
+* Action SHOULD be created by a task and should be given the parent task an
+  the dictionary of values that will be used to determine what the action
+  should do
+* Action SHOULD verify that it has all the required data and the data
+  is correct by the 'verify' function and during the initialization.
+* If verification is failed action should raise 'exceptions.NotValidMetadata'
+* Action SHOULD run its payload when 'run' method is called.
+* If action is failed it should raise 'exceptions.Failed'
+* Action SHOULD return report when 'report' method is called. The report
+  should be a String, preferably in xUnit xml format, or None, it there is
+  no report to return.
+* Action MAY implement 'reset' method to reload to the initial state if it's
+  required.
+* Action MAY use logger and config values from the parent task.
+* Action MUST NOT work with reports and tests, it's Task's job.
+* Action MUST NOT interfere with status and processes, it's Agent's job.
+"""
 
 from tasklib import exceptions
 
