@@ -1,7 +1,0 @@
-- id: test-post
-  type: shell
-  role: []
-  requires: []
-  required_for: []
-  test_post:
-    cmd: /bin/echo "post start" && /bin/true && /bin/echo "post end"

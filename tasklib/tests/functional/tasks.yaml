@@ -1,0 +1,146 @@
+#- id: sync_time
+#  type: shell
+#  role: '*'
+#  requires: [pre_deployment_start]
+#  required_for: [pre_deployment_end]
+#  parameters:
+#    cmd: ntpdate -u $(awk '/^server/ { if ($2 !~ /127\.127\.[0-9]+\.[0-9]+/) {ORS=" "; print $2}}' /etc/ntp.conf)
+#    retries: 10
+#    interval: 30
+#    timeout: 180
+#
+#- id: pre_hiera_config
+#  type: puppet
+#  role: '*'
+#  requires: [pre_deployment_start, rsync_core_puppet]
+#  required_for: [pre_deployment_end]
+#  parameters:
+#    puppet_manifest: /etc/puppet/modules/osnailyfacter/modular/hiera/hiera.pp
+#    puppet_modules: /etc/puppet/modules
+#    timeout: 3600
+#    cwd: /
+#  test_pre:
+#    cmd: ruby /etc/puppet/modules/osnailyfacter/modular/ceilometer/compute_pre.rb
+#  test_post:
+#    cmd: ruby /etc/puppet/modules/osnailyfacter/modular/ceilometer/compute_post.rb
+#
+
+- id: empty-shell-task
+  type: shell
+  role: []
+  requires: []
+  required_for: []
+
+- id: simple-shell-task
+  type: shell
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/echo "task start" && /bin/echo "task end"
+    timeout: 180
+
+- id: fail-shell-task
+  type: shell
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/false
+    timeout: 180
+
+- id: shell-task-with-post-fail
+  type: shell
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/echo "task start" && /bin/echo "task end"
+    timeout: 180
+  test_post:
+    cmd: /bin/echo "post start" && /bin/false"
+
+- id: shell-task-with-tests
+  type: shell
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/echo "task start" && /bin/echo "task end"
+    timeout: 180
+  test_pre:
+    cmd: /bin/echo "pre start" && /bin/echo "pre end"
+  test_post:
+    cmd: /bin/echo "post start" && /bin/echo "post end"
+
+- id: long-shell-task-with-tests
+  type: shell
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    cmd: /bin/echo "task start" && /bin/sleep 10 && /bin/echo "task end"
+    timeout: 180
+  test_pre:
+    cmd: /bin/echo "pre start" && /bin/sleep 10 && /bin/echo "pre end"
+  test_post:
+    cmd: /bin/echo "post start" && /bin/sleep 10 && /bin/echo "post end"
+
+- id: puppet-cmd-task
+  type: puppet
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    puppet_manifest: tests/functional/puppet/cmd.pp
+    puppet_modules: tests/functional/puppet/modules
+    timeout: 3600
+    cwd: tasklib
+  test_pre:
+    cmd: /bin/echo "pre start" && /bin/echo "pre end"
+  test_post:
+    cmd: /bin/echo "post start" && /bin/echo "post end"
+
+- id: puppet-file
+  type: puppet
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    puppet_manifest: tests/functional/puppet/file.pp
+    puppet_modules: tests/functional/puppet/modules
+    timeout: 3600
+    cwd: tasklib
+  test_post:
+    cmd: /bin/test /tmp/file
+
+- id: puppet-invalid
+  type: puppet
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    puppet_manifest: tests/functional/puppet/invalid.pp
+    puppet_modules: tests/functional/puppet/modules
+    timeout: 3600
+    cwd: tasklib
+
+- id: puppet-sleepn
+  type: puppet
+  role: '*'
+  groups: []
+  requires: []
+  required_for: []
+  parameters:
+    puppet_manifest: tests/functional/puppet/sleep.pp
+    puppet_modules: tests/functional/puppet/modules
+    timeout: 3600
+    cwd: tasklib

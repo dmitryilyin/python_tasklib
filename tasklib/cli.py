@@ -14,6 +14,7 @@
 
 import argparse
 import sys
+import os
 import textwrap
 
 import yaml
@@ -23,6 +24,7 @@ from tasklib import config
 from tasklib import exceptions
 from tasklib import common
 from contextlib import contextmanager
+
 
 class CmdApi(object):
     """
@@ -52,6 +54,8 @@ class CmdApi(object):
         task_arg = [(('task',), {'type': str})]
         self.register_parser('list')
         self.register_parser('conf')
+        self.register_parser('log')
+        self.register_parser('truncate')
         for name in ('run', 'daemon', 'report', 'status', 'show', 'clear'):
             self.register_parser(name, task_arg)
 
@@ -67,6 +71,10 @@ class CmdApi(object):
             self.config.update_from_file(parsed.config)
         if parsed.debug is not None:
             self.config['debug'] = parsed.debug
+        if parsed.config is None:
+            local_log = 'tasklib.yaml'
+            if os.path.isfile(local_log):
+                parsed.config = local_log
         return parsed.func(parsed)
 
     def list(self, args):
@@ -129,6 +137,18 @@ class CmdApi(object):
 
     def conf(self, args):
         common.output(self.config)
+
+    def log(self, args):
+        log_file = self.config['log_file']
+        if log_file and os.path.isfile(log_file):
+            command = "less +F --chop-long-lines '%s'" % log_file
+            os.system(command)
+
+    def truncate(self, args):
+        log_file = self.config['log_file']
+        if log_file and os.path.isfile(log_file):
+            with open(log_file, 'w') as lf:
+                lf.truncate()
 
     @contextmanager
     def rescue_exceptions(self):

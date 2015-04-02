@@ -1,6 +1,6 @@
 # Copyright 2014 Mirantis, Inc.
 #
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
 #
@@ -39,11 +39,11 @@ class ShellAction(action.Action):
         return self.data['cmd']
 
     def run(self):
-        self.logger.debug("Task: '%s' action: '%s' run command: '%s'",
-                          self.task.name, self.type, self.command)
+        self.log.debug("Task: '%s' action: '%s' run command: '%s'",
+                       self.task.name, self.type, self.command)
         self.reset()
         self.code, self.stdout, self.stderr = common.execute(self.command)
-        self.logger.debug("Task: '%s' action: '%s' %s" % (
+        self.log.debug("Task: '%s' action: '%s' %s" % (
             self.task.name,
             self.type,
             self.report(),

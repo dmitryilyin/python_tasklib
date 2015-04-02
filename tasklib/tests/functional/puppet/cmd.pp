@@ -1,3 +1,3 @@
-exec { "which which":
+exec { "which which" :
   path    => ["/usr/bin", "/usr/sbin"]
 }

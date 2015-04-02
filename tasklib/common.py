@@ -70,7 +70,8 @@ def process_task_data(task_file):
                     if not 'cwd' in task:
                         task['parameters']['cwd'] = task_directory
                 task_data[task['id']] = task
-        except:
+        except Exception, exception:
+            print "Error parsing file: %s - %s" % (task_file, exception)
             return task_data
     return task_data
 

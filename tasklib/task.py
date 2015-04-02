@@ -67,13 +67,13 @@ class Task(object):
     def __init__(self, agent, data):
         self.agent = agent
         self.config = agent.config
-        self.logger = agent.logger
+        self.log = agent.log
         self.data = data
         self._status = None
         self._report = {}
         self.saved_directory = None
         self.verify()
-        self.logger.debug("Task: '%s' task init", self.id)
+        self.log.debug("Task: '%s' task init", self.id)
 
     ##
 
@@ -250,13 +250,13 @@ class Task(object):
     ##
 
     def run(self):
-        self.logger.debug("Task: '%s' run start", self.id)
+        self.log.debug("Task: '%s' run start", self.id)
 
         try:
             self.save_status(common.STATUS.run_pre.name)
             self.pre()
         except exceptions.Failed:
-            self.logger.warning("Task: '%s' pre test failed!", self.id)
+            self.log.warning("Task: '%s' pre test failed!", self.id)
             self.save_status(common.STATUS.fail_pre.name)
             return common.STATUS.fail_pre.code
 
@@ -264,7 +264,7 @@ class Task(object):
             self.save_status(common.STATUS.run_task.name)
             self.task()
         except exceptions.Failed:
-            self.logger.warning("Task: '%s' task failed!", self.id)
+            self.log.warning("Task: '%s' task failed!", self.id)
             self.save_status(common.STATUS.fail_task.name)
             return common.STATUS.fail_task.code
 
@@ -272,12 +272,12 @@ class Task(object):
             self.save_status(common.STATUS.run_post.name)
             self.post()
         except exceptions.Failed:
-            self.logger.warning("Task: '%s' post test failed!", self.id)
+            self.log.warning("Task: '%s' post test failed!", self.id)
             self.save_status(common.STATUS.fail_post.name)
             return common.STATUS.fail_post.code
 
         self.save_status(common.STATUS.success.name)
-        self.logger.debug("Task: '%s' run end", self.id)
+        self.log.debug("Task: '%s' run end", self.id)
         return common.STATUS.success.code
 
     def task(self):
@@ -285,30 +285,30 @@ class Task(object):
             return None
         action = self.action(self.type, self.task_data)
         with self.inside_task_directory():
-            self.logger.debug("Task: '%s' start action: task", self.id)
+            self.log.debug("Task: '%s' start action: task", self.id)
             action.run()
             report = action.report()
         self.save_report('task', report)
-        self.logger.debug("Task: '%s' end action: task", self.id)
+        self.log.debug("Task: '%s' end action: task", self.id)
 
     def pre(self):
         if not self.pre_data:
             return None
         action = self.action(self.pre_type, self.pre_data)
         with self.inside_task_directory():
-            self.logger.debug("Task: '%s' start action: pre", self.id)
+            self.log.debug("Task: '%s' start action: pre", self.id)
             action.run()
             report = action.report()
         self.save_report('pre', report)
-        self.logger.debug("Task: '%s' end action: pre", self.id)
+        self.log.debug("Task: '%s' end action: pre", self.id)
 
     def post(self):
         if not self.post_data:
             return None
         action = self.action(self.post_type, self.post_data)
         with self.inside_task_directory():
-            self.logger.debug("Task: '%s' start action: post", self.id)
+            self.log.debug("Task: '%s' start action: post", self.id)
             action.run()
             report = action.report()
         self.save_report('post', report)
-        self.logger.debug("Task: '%s' end action: post", self.id)
+        self.log.debug("Task: '%s' end action: post", self.id)

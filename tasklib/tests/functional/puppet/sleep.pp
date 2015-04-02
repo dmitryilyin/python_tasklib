@@ -1,3 +1,3 @@
-exec { "echo 15":
+exec { "echo 15" :
   path    => ["/bin", "sbin"]
 }

@@ -41,6 +41,7 @@ class Config(object):
             'pid_dir': '/var/tmp/task_pid',
             'status_dir': '/var/tmp/task_status',
             'log_file': '/var/tmp/tasklib.log',
+            'log_console': False,
             'debug': False,
         }
 

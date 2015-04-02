@@ -1,5 +1,0 @@
-- id: test-empty
-  type: shell
-  role: []
-  requires: []
-  required_for: []

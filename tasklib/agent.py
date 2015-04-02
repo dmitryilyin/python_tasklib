@@ -14,6 +14,7 @@
 
 import os
 import daemonize
+import logging
 
 from tasklib import task
 from tasklib import common
@@ -22,10 +23,22 @@ from tasklib import exceptions
 
 
 class Agent(object):
+    """
+    Task Agent
+
+    Agent is responsible for:
+    * Creating an instance of the Task
+    * Verification of the tasks using it's method
+    * Ensuring that all the needed directories are present
+    * Running the task either in foreground or in the background
+    * Maintaining the task pid file for both background and foreground run
+    * Answering if the task is running or not
+    * Using task's methods to get the task's
+    """
     def __init__(self, task_name, config):
         self.config = config
-        self.logger = logger.setup_logging(self.config, 'tasklib')
-        self.logger.debug("Task: '%s' agent init", task_name)
+        self.log = logger.setup_logging(self.config, 'TaskLib')
+        self.log.debug("Task: '%s' agent init", task_name)
         self.task = None
         self.saved_directory = None
         self.init_task_name = task_name
@@ -51,24 +64,19 @@ class Agent(object):
             )
 
     def run(self):
-        self.logger.debug('run start')
+        self.verify()
+        return self.task.run()
+
+    def daemon_run_wrapper(self):
         try:
             if self.saved_directory and os.path.isdir(self.saved_directory):
                 os.chdir(self.saved_directory)
-            #self.logger.debug(self.task)
-            if not self.task:
-                return
-            self.logger.debug('task!')
-            self.task.logger = self.logger
-            #self.logger.debug(os.getcwd())
-            #self.logger.debug(self.cwd)
-            self.task.run()
+                self.saved_directory = None
+            self.log.debug("Task: '%s' daemon active with pid: '%d'",
+                           self.task.name, os.getpid())
+            self.run()
         except Exception as e:
-            self.logger.debug(str(e))
-        self.logger.debug('run end')
-        # if self.running():
-        #     raise exceptions.AlreadyRunning(self.task.name, self.pid)
-        #return self.task.run()
+            self.log.exception(str(e))
 
     def status(self):
         if not self.task:
@@ -118,23 +126,23 @@ class Agent(object):
         return os.path.isdir(cmdline)
 
     def daemon(self):
-        import logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.propagate = False
-        fh = logging.FileHandler("/tmp/test.log", "w")
-        fh.setLevel(logging.DEBUG)
-        self.logger.addHandler(fh)
-        keep_fds = [fh.stream.fileno()]
-        self.logger.debug("Task: '%s' daemonize with pid file: '%s'",
-                          self.task.name, self.pid_file)
-        self.saved_directory = os.getcwd()
+        self.verify()
+        if self.running():
+            raise exceptions.AlreadyRunning(self.task.name, self.pid)
+        log_keep_fds = []
+        for handler in self.log.handlers:
+            if isinstance(handler, logging.FileHandler):
+                log_keep_fds.append(handler.stream.fileno())
+        print log_keep_fds
+        self.saved_directory = os.getcwdu()
         daemon = daemonize.Daemonize(
-            app='tasklib',
+            app=str(self),
             pid=self.pid_file,
-            action=self.run,
-            keep_fds=keep_fds,
+            action=self.daemon_run_wrapper,
+            keep_fds=log_keep_fds,
         )
+        self.log.debug("Task: '%s' daemon start with pid file: '%s'",
+                       self.task.name, self.pid_file)
         daemon.start()
         return daemon
 
